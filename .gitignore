@@ -1,0 +1,17 @@
+# Mac system files
+.DS_Store
+
+# Secrets, never commit these
+.env
+.env.*
+!.env.example
+
+# Editor settings
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Frontend libraries (for later)
+node_modules/
