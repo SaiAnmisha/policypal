@@ -7,8 +7,11 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+
+import reactor.core.publisher.Flux;
 
 @Service
 public class AskService {
@@ -31,48 +34,89 @@ public class AskService {
         this.chatClient = chatClientBuilder.build();
     }
 
+    // Normal version: waits for the full answer
     public AskResponse ask(String question) {
+        List<Document> matches = findMatches(question);
+        if (matches.isEmpty()) {
+            return new AskResponse(NO_ANSWER, List.of());
+        }
+
+        String answer = chatClient.prompt()
+                .system(SYSTEM_PROMPT)
+                .user(buildUserMessage(question, matches))
+                .call()
+                .content();
+
+        if (isNoAnswer(answer)) {
+            return new AskResponse(NO_ANSWER, List.of());
+        }
+        return new AskResponse(answer.trim(), toSources(matches));
+    }
+
+    // Streaming version: sends the answer piece by piece
+    public Flux<ServerSentEvent<Object>> askStream(String question) {
+        List<Document> matches = findMatches(question);
+        if (matches.isEmpty()) {
+            return Flux.just(
+                    event("token", new Token(NO_ANSWER)),
+                    event("sources", List.of()),
+                    event("done", ""));
+        }
+
+        StringBuilder fullAnswer = new StringBuilder();
+
+        Flux<ServerSentEvent<Object>> tokens = chatClient.prompt()
+                .system(SYSTEM_PROMPT)
+                .user(buildUserMessage(question, matches))
+                .stream()
+                .content()
+                .doOnNext(fullAnswer::append)
+                .map(text -> event("token", new Token(text)));
+
+        // Runs only after the last token, when we know the full answer
+        Flux<ServerSentEvent<Object>> ending = Flux.defer(() -> {
+            List<Source> sources = isNoAnswer(fullAnswer.toString()) ? List.of() : toSources(matches);
+            return Flux.just(event("sources", sources), event("done", ""));
+        });
+
+        return tokens.concatWith(ending);
+    }
+
+    private List<Document> findMatches(String question) {
         if (question == null || question.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Please type a question");
         }
-
-        // Find the 4 chunks closest in meaning to the question
-        List<Document> matches = vectorStore.similaritySearch(
+        return vectorStore.similaritySearch(
                 SearchRequest.builder()
                         .query(question)
                         .topK(4)
                         .similarityThreshold(0.5)
                         .build());
+    }
 
-        // Nothing relevant found, so don't ask the model at all
-        if (matches.isEmpty()) {
-            return new AskResponse(NO_ANSWER, List.of());
-        }
-
-        // Put the matching chunks together, each labelled with its page
+    private String buildUserMessage(String question, List<Document> matches) {
         StringBuilder context = new StringBuilder();
         for (Document doc : matches) {
             context.append("[Page ").append(pageOf(doc)).append("]\n")
                     .append(doc.getText())
                     .append("\n\n");
         }
+        return "CONTEXT:\n" + context + "\nQUESTION: " + question;
+    }
 
-        String answer = chatClient.prompt()
-                .system(SYSTEM_PROMPT)
-                .user("CONTEXT:\n" + context + "\nQUESTION: " + question)
-                .call()
-                .content();
+    private boolean isNoAnswer(String answer) {
+        return answer == null || answer.isBlank()
+                || answer.strip().toLowerCase().replace('\u2019', '\'').startsWith("i don't know");
+    }
 
-        // If the model couldn't answer, don't show sources that didn't help
-        if (answer == null || answer.toLowerCase().replace('\u2019', '\'').startsWith("i don't know")) {
-            return new AskResponse(NO_ANSWER, List.of());
-        }
-
-        List<Source> sources = matches.stream()
+    private List<Source> toSources(List<Document> matches) {
+        return matches.stream()
                 .map(doc -> new Source(fileOf(doc), pageOf(doc), snippetOf(doc)))
                 .toList();
+    }
 
-        return new AskResponse(answer.trim(), sources);
+    private ServerSentEvent<Object> event(String name, Object data) {
+        return ServerSentEvent.<Object>builder(data).event(name).build();
     }
 
     private Integer pageOf(Document doc) {
