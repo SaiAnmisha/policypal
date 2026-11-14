@@ -5,6 +5,24 @@ spring:
     url: jdbc:postgresql://localhost:5432/policypal
     username: ${DB_USERNAME:policypal}
     password: ${DB_PASSWORD:policypal}
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: llama3.2
+        temperature: 0.2
+      embedding:
+        model: nomic-embed-text
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        dimensions: 768
+        distance-type: COSINE_DISTANCE
+        index-type: HNSW
 
 management:
   endpoint:
