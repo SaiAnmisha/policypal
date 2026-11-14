@@ -11,8 +11,11 @@ export type UploadResult = {
   chunks: number;
 };
 
+export type MessageStatus = "streaming" | "done" | "error";
+
 export type Message = {
   role: "user" | "assistant";
   text: string;
   sources: Source[];
+  status: MessageStatus;
 };
