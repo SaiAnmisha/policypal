@@ -1,0 +1,15 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: policypal-db
+    environment:
+      POSTGRES_DB: policypal
+      POSTGRES_USER: policypal
+      POSTGRES_PASSWORD: policypal # local only, never used in production
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
