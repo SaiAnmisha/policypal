@@ -1,4 +1,4 @@
-package com.saianmisha.policypal.ask;
+package com.policypal.ask;
 
 public record AskRequest(String question) {
 }

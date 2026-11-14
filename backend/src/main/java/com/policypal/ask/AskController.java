@@ -1,4 +1,4 @@
-package com.saianmisha.policypal.ask;
+package com.policypal.ask;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
