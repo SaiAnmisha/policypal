@@ -1,4 +1,4 @@
-package com.saianmisha.policypal.document;
+package com.policypal.document;
 
 import java.io.IOException;
 
