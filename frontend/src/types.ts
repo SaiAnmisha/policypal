@@ -19,3 +19,11 @@ export type Message = {
   sources: Source[];
   status: MessageStatus;
 };
+
+export type DocumentInfo = {
+  id: string;
+  fileName: string;
+  pages: number;
+  chunks: number;
+  uploadedAt: string;
+};

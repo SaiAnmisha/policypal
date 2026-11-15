@@ -1,19 +1,23 @@
 import { useRef, useState } from "react";
 import type { DragEvent } from "react";
-import type { UploadResult } from "../types";
+import type { DocumentInfo } from "../types";
 
 type Props = {
-  documents: UploadResult[];
+  documents: DocumentInfo[];
   uploading: boolean;
+  deletingId: string | null;
   error: string | null;
   onUpload: (file: File) => void;
+  onDelete: (doc: DocumentInfo) => void;
 };
 
 export default function Sidebar({
   documents,
   uploading,
+  deletingId,
   error,
   onUpload,
+  onDelete,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -91,28 +95,45 @@ export default function Sidebar({
       <h2 className="section-label">Documents</h2>
       {documents.length === 0 ? (
         <p className="muted small">
-          No documents uploaded in this session yet.
+          No documents yet. Upload a PDF to get started.
         </p>
       ) : (
         <ul className="doc-list">
           {documents.map((doc) => (
-            <li key={doc.documentId} className="doc-item">
+            <li key={doc.id} className="doc-item">
               <FileIcon />
               <div className="doc-meta">
                 <span className="doc-name" title={doc.fileName}>
                   {doc.fileName}
                 </span>
                 <span className="doc-sub">
-                  {doc.pages} pages · {doc.chunks} chunks
+                  {doc.pages} pages · {formatDate(doc.uploadedAt)}
                 </span>
               </div>
-              <span className="badge">Ready</span>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={`Delete ${doc.fileName}`}
+                title="Delete"
+                disabled={deletingId === doc.id}
+                onClick={() => onDelete(doc)}
+              >
+                <TrashIcon />
+              </button>
             </li>
           ))}
         </ul>
       )}
     </aside>
   );
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function UploadIcon() {
@@ -150,6 +171,28 @@ function FileIcon() {
     >
       <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
       <path d="M14 3v5h5" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 7h16" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12" />
+      <path d="M9 7V4h6v3" />
     </svg>
   );
 }

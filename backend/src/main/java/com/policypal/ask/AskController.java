@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import reactor.core.publisher.Flux;
 
 @RestController
@@ -22,12 +25,16 @@ public class AskController {
     }
 
     @PostMapping
-    public AskResponse ask(@RequestBody AskRequest request) {
+    public AskResponse ask(@Valid @RequestBody AskRequest request) {
         return askService.ask(request.question());
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<Object>> askStream(@RequestParam String question) {
+    public Flux<ServerSentEvent<Object>> askStream(
+            @RequestParam
+            @NotBlank(message = "Please type a question")
+            @Size(max = 1000, message = "Questions can be up to 1000 characters")
+            String question) {
         return askService.askStream(question);
     }
 }
