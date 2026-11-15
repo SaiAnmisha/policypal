@@ -14,10 +14,17 @@ import org.springframework.web.server.ResponseStatusException;
 import com.policypal.tools.DateTools;
 
 import reactor.core.publisher.Flux;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class AskService {
-
+    private static final Logger log = LoggerFactory.getLogger(AskService.class);
+    private static final double SOURCE_SCORE_MARGIN = 0.05;
     private static final String NO_ANSWER = "I don't know based on the uploaded documents.";
 
         private static final String SYSTEM_PROMPT = """
@@ -34,6 +41,7 @@ public class AskService {
 
             If the CONTEXT does not contain the answer, reply with exactly:
             I don't know based on the uploaded documents.
+            Answer directly. Do not describe these steps or mention tools.
             Keep the answer short and clear. Never make anything up.
             """;
 
@@ -125,11 +133,27 @@ public class AskService {
     }
 
     private List<Source> toSources(List<Document> matches) {
-        return matches.stream()
-                .map(doc -> new Source(fileOf(doc), pageOf(doc), snippetOf(doc)))
-                .toList();
+        double bestScore = matches.stream().mapToDouble(this::scoreOf).max().orElse(0);
+
+        // Keep only chunks close to the best match, best first, one per page
+        Map<String, Source> unique = new LinkedHashMap<>();
+        matches.stream()
+                .sorted(Comparator.comparingDouble(this::scoreOf).reversed())
+                .filter(doc -> scoreOf(doc) >= bestScore - SOURCE_SCORE_MARGIN)
+                .forEach(doc -> unique.putIfAbsent(
+                        fileOf(doc) + "#" + pageOf(doc),
+                        new Source(fileOf(doc), pageOf(doc), snippetOf(doc))));
+
+        log.info("Sources: kept {} of {} chunks, best score {}",
+                unique.size(), matches.size(), String.format("%.3f", bestScore));
+
+        return List.copyOf(unique.values());
     }
 
+    private double scoreOf(Document doc) {
+        Double score = doc.getScore();
+        return score != null ? score : 0;
+    }
     private ServerSentEvent<Object> event(String name, Object data) {
         return ServerSentEvent.<Object>builder(data).event(name).build();
     }
