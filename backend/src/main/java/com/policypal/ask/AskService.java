@@ -11,6 +11,8 @@ import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.policypal.tools.DateTools;
+
 import reactor.core.publisher.Flux;
 
 @Service
@@ -18,9 +20,18 @@ public class AskService {
 
     private static final String NO_ANSWER = "I don't know based on the uploaded documents.";
 
-    private static final String SYSTEM_PROMPT = """
+        private static final String SYSTEM_PROMPT = """
             You answer questions about the user's documents.
-            Use ONLY the information in the CONTEXT.
+            Use ONLY the information in the CONTEXT for facts about the documents.
+
+            When the question needs a date or a calculation, follow these steps:
+            1. Find the rule in the CONTEXT that matches the user's situation.
+               For example, with three years of service, use the rule for two to five years.
+            2. Say which rule you used and the number it gives, for example "two months' notice".
+            3. Call the date tool with that number, not a number from the question.
+            4. Give the exact result from the tool. Do not round it.
+            Never work out dates or pro rata amounts yourself.
+
             If the CONTEXT does not contain the answer, reply with exactly:
             I don't know based on the uploaded documents.
             Keep the answer short and clear. Never make anything up.
@@ -28,10 +39,12 @@ public class AskService {
 
     private final VectorStore vectorStore;
     private final ChatClient chatClient;
+    private final DateTools dateTools;
 
-    public AskService(VectorStore vectorStore, ChatClient.Builder chatClientBuilder) {
+    public AskService(VectorStore vectorStore, ChatClient.Builder chatClientBuilder, DateTools dateTools) {
         this.vectorStore = vectorStore;
         this.chatClient = chatClientBuilder.build();
+        this.dateTools = dateTools;
     }
 
     // Normal version: waits for the full answer
@@ -44,6 +57,7 @@ public class AskService {
         String answer = chatClient.prompt()
                 .system(SYSTEM_PROMPT)
                 .user(buildUserMessage(question, matches))
+                .tools(dateTools)
                 .call()
                 .content();
 
@@ -68,6 +82,7 @@ public class AskService {
         Flux<ServerSentEvent<Object>> tokens = chatClient.prompt()
                 .system(SYSTEM_PROMPT)
                 .user(buildUserMessage(question, matches))
+                .tools(dateTools)
                 .stream()
                 .content()
                 .doOnNext(fullAnswer::append)

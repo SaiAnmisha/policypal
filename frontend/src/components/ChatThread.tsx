@@ -4,9 +4,9 @@ import MessageBubble from "./MessageBubble";
 
 const SUGGESTIONS = [
   "How much notice do I need to give after three years?",
-  "How many days of annual leave do I get?",
+  "If I resign on 2 March 2027 after three years, what is my last day?",
+  "I started on 1 July 2026. How much annual leave do I get this year?",
   "Can I work from home?",
-  "What happens if I am off sick for more than a week?",
 ];
 
 type Props = {
