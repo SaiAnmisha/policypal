@@ -1,29 +1,41 @@
 export type Source = {
   fileName: string;
-  page: number | null;
-  snippet: string;
+  page: number;
+  text: string;
 };
 
 export type UploadResult = {
-  documentId: string;
   fileName: string;
   pages: number;
   chunks: number;
-};
-
-export type MessageStatus = "streaming" | "done" | "error";
-
-export type Message = {
-  role: "user" | "assistant";
-  text: string;
-  sources: Source[];
-  status: MessageStatus;
 };
 
 export type DocumentInfo = {
   id: string;
   fileName: string;
   pages: number;
-  chunks: number;
   uploadedAt: string;
+};
+
+export type MessageStatus = "streaming" | "done" | "stopped" | "error";
+
+export type Message = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  sources: Source[];
+  status: MessageStatus;
+};
+
+// What the sidebar shows while a PDF is being uploaded and processed
+export type UploadState = {
+  fileName: string;
+  percent: number;
+  stage: "uploading" | "processing";
+};
+
+export type ToastItem = {
+  id: number;
+  kind: "success" | "error";
+  text: string;
 };

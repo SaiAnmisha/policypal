@@ -1,58 +1,93 @@
-import { useState } from "react";
-import type { FormEvent, KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 
-type Props = {
-  asking: boolean;
-  onSend: (question: string) => void;
+type ComposerProps = {
+  disabled: boolean;
+  streaming: boolean;
+  onAsk: (question: string) => void;
   onStop: () => void;
 };
 
-export default function Composer({ asking, onSend, onStop }: Props) {
+export default function Composer({
+  disabled,
+  streaming,
+  onAsk,
+  onStop,
+}: ComposerProps) {
   const [text, setText] = useState("");
+  const boxRef = useRef<HTMLTextAreaElement>(null);
 
-  function submit(e?: FormEvent) {
-    e?.preventDefault();
-    if (!text.trim() || asking) return;
-    onSend(text);
+  // Grow the box with the text, up to the max height in CSS
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    box.style.height = "auto";
+    box.style.height = `${box.scrollHeight}px`;
+  }, [text]);
+
+  function submit() {
+    const question = text.trim();
+    if (!question || disabled || streaming) return;
+    onAsk(question);
     setText("");
   }
 
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    submit();
+  }
+
   // Enter sends, Shift + Enter adds a new line
-  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
       submit();
     }
   }
 
   return (
-    <div className="composer-wrap">
-      <form className="composer" onSubmit={submit}>
+    <form className="composer" onSubmit={handleSubmit}>
+      <div className="composer-box">
+        <label htmlFor="question" className="visually-hidden">
+          Your question
+        </label>
         <textarea
+          id="question"
+          ref={boxRef}
+          rows={1}
+          maxLength={1000}
           value={text}
+          disabled={disabled}
+          placeholder={
+            disabled
+              ? "Upload a document to start asking"
+              : "Ask about notice periods, leave, sickness…"
+          }
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask about notice periods, leave, sickness…"
-          rows={1}
-          aria-label="Your question"
         />
-        {asking ? (
-          <button type="button" className="btn btn-secondary" onClick={onStop}>
+        {streaming ? (
+          <button type="button" className="btn-stop" onClick={onStop}>
             Stop
           </button>
         ) : (
           <button
             type="submit"
-            className="btn btn-primary"
-            disabled={!text.trim()}
+            className="btn-ask"
+            disabled={disabled || !text.trim()}
           >
             Ask
           </button>
         )}
-      </form>
+      </div>
       <p className="composer-hint">
         Enter to send, Shift + Enter for a new line
       </p>
-    </div>
+    </form>
   );
 }

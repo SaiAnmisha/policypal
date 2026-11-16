@@ -1,132 +1,19 @@
-import { useRef, useState } from "react";
-import type { DragEvent } from "react";
-import type { DocumentInfo } from "../types";
+import { useState, useEffect, useRef, type DragEvent } from "react";
+import type { DocumentInfo, UploadState } from "../types";
+import { Brand } from "./Logo";
+import UserMenu from "./UserMenu";
 
-type Props = {
+type SidebarProps = {
+  email: string;
   documents: DocumentInfo[];
-  uploading: boolean;
-  deletingId: string | null;
-  error: string | null;
+  loadingDocs: boolean;
+  upload: UploadState | null;
   onUpload: (file: File) => void;
   onDelete: (doc: DocumentInfo) => void;
+  onLogout: () => void;
+  open: boolean;
+  onClose: () => void;
 };
-
-export default function Sidebar({
-  documents,
-  uploading,
-  deletingId,
-  error,
-  onUpload,
-  onDelete,
-}: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [dragging, setDragging] = useState(false);
-
-  function pick(files: FileList | null) {
-    const file = files?.[0];
-    if (file) onUpload(file);
-  }
-
-  function openPicker() {
-    if (!uploading) inputRef.current?.click();
-  }
-
-  function handleDrop(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setDragging(false);
-    if (!uploading) pick(e.dataTransfer.files);
-  }
-
-  return (
-    <aside className="sidebar">
-      <div className="brand">
-        <span className="brand-mark" aria-hidden="true">
-          P
-        </span>
-        <span>PolicyPal</span>
-      </div>
-
-      <div
-        className={`dropzone ${dragging ? "is-dragging" : ""} ${uploading ? "is-busy" : ""}`}
-        role="button"
-        tabIndex={0}
-        aria-label="Upload a PDF"
-        onClick={openPicker}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            openPicker();
-          }
-        }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
-      >
-        <UploadIcon />
-        <p className="dropzone-title">
-          {uploading ? "Reading your PDF…" : "Drop a PDF here"}
-        </p>
-        <p className="dropzone-hint">
-          {uploading
-            ? "Splitting pages and creating embeddings"
-            : "or click to browse. Max 20 MB"}
-        </p>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="application/pdf"
-          hidden
-          onChange={(e) => {
-            pick(e.target.files);
-            e.target.value = "";
-          }}
-        />
-      </div>
-
-      {error && (
-        <p className="alert alert-error" role="alert">
-          {error}
-        </p>
-      )}
-
-      <h2 className="section-label">Documents</h2>
-      {documents.length === 0 ? (
-        <p className="muted small">
-          No documents yet. Upload a PDF to get started.
-        </p>
-      ) : (
-        <ul className="doc-list">
-          {documents.map((doc) => (
-            <li key={doc.id} className="doc-item">
-              <FileIcon />
-              <div className="doc-meta">
-                <span className="doc-name" title={doc.fileName}>
-                  {doc.fileName}
-                </span>
-                <span className="doc-sub">
-                  {doc.pages} pages · {formatDate(doc.uploadedAt)}
-                </span>
-              </div>
-              <button
-                type="button"
-                className="icon-button"
-                aria-label={`Delete ${doc.fileName}`}
-                title="Delete"
-                disabled={deletingId === doc.id}
-                onClick={() => onDelete(doc)}
-              >
-                <TrashIcon />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </aside>
-  );
-}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", {
@@ -136,63 +23,157 @@ function formatDate(iso: string) {
   });
 }
 
-function UploadIcon() {
-  return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M12 16V4" />
-      <path d="m7 9 5-5 5 5" />
-      <path d="M5 20h14" />
-    </svg>
-  );
-}
+export default function Sidebar({
+  email,
+  documents,
+  loadingDocs,
+  upload,
+  onUpload,
+  onDelete,
+  onLogout,
+  open,
+  onClose,
+}: SidebarProps) {
+  const [dragging, setDragging] = useState(false);
+  const busy = upload !== null;
+  const closeRef = useRef<HTMLButtonElement>(null);
 
-function FileIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-      <path d="M14 3v5h5" />
-    </svg>
-  );
-}
+  // When the phone menu opens, move keyboard focus into it
+  useEffect(() => {
+    if (open) closeRef.current?.focus();
+  }, [open]);
 
-function TrashIcon() {
+  function handleDrop(event: DragEvent) {
+    event.preventDefault();
+    setDragging(false);
+    const file = event.dataTransfer.files[0];
+    if (file && !busy) onUpload(file);
+  }
+
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M4 7h16" />
-      <path d="M10 11v6" />
-      <path d="M14 11v6" />
-      <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12" />
-      <path d="M9 7V4h6v3" />
-    </svg>
+    <aside id="sidebar" className={`sidebar ${open ? "open" : ""}`}>
+      <div className="sidebar-top">
+        <Brand size={30} onDark />
+        <button
+          ref={closeRef}
+          type="button"
+          className="icon-btn close-btn"
+          aria-label="Close menu"
+          onClick={onClose}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
+      </div>
+
+      <label
+        className={`dropzone ${dragging ? "dragging" : ""} ${busy ? "disabled" : ""}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+      >
+        <input
+          type="file"
+          accept="application/pdf,.pdf"
+          className="visually-hidden"
+          disabled={busy}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onUpload(file);
+            e.target.value = "";
+          }}
+        />
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 16V4" />
+          <path d="m7 9 5-5 5 5" />
+          <path d="M5 20h14" />
+        </svg>
+        <span className="dropzone-title">Drop a PDF here</span>
+        <span className="dropzone-sub">or click to browse. Max 20 MB</span>
+      </label>
+
+      {upload && (
+        <div className="upload-card" role="status">
+          <p className="upload-name">{upload.fileName}</p>
+          <ul className="upload-steps">
+            <li className={upload.stage === "processing" ? "done" : "active"}>
+              <span className="step-icon" />
+              {upload.stage === "uploading"
+                ? `Uploading… ${upload.percent}%`
+                : "Uploaded"}
+            </li>
+            <li className={upload.stage === "processing" ? "active" : ""}>
+              <span className="step-icon" />
+              Reading pages and creating embeddings…
+            </li>
+            <li>
+              <span className="step-icon" />
+              Ready to ask
+            </li>
+          </ul>
+          <div className="progress">
+            <div
+              className={`progress-bar ${upload.stage === "processing" ? "indeterminate" : ""}`}
+              style={
+                upload.stage === "uploading"
+                  ? { width: `${upload.percent}%` }
+                  : undefined
+              }
+            />
+          </div>
+        </div>
+      )}
+
+      <p className="sidebar-label">DOCUMENTS</p>
+
+      {loadingDocs ? (
+        <p className="sidebar-empty">Loading…</p>
+      ) : documents.length === 0 ? (
+        <p className="sidebar-empty">
+          No documents yet. Upload a PDF or try the sample.
+        </p>
+      ) : (
+        <ul className="doc-list">
+          {documents.map((doc) => (
+            <li key={doc.id} className="doc">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                <path d="M14 3v5h5" />
+              </svg>
+              <span className="doc-text">
+                <span className="doc-name" title={doc.fileName}>
+                  {doc.fileName}
+                </span>
+                <span className="doc-meta">
+                  {doc.pages} {doc.pages === 1 ? "page" : "pages"} ·{" "}
+                  {formatDate(doc.uploadedAt)}
+                </span>
+              </span>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={`Delete ${doc.fileName}`}
+                onClick={() => onDelete(doc)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                  <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12" />
+                  <path d="M9 7V4h6v3" />
+                </svg>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="sidebar-spacer" />
+      <UserMenu email={email} onLogout={onLogout} />
+    </aside>
   );
 }

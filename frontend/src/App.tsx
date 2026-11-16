@@ -1,14 +1,9 @@
 import { useState } from "react";
 import LoginPage from "./components/LoginPage";
-import {
-  clearSession,
-  displayName,
-  loadSession,
-  saveSession,
-  type Session,
-} from "./auth";
+import Workspace from "./components/Workspace";
+import { clearSession, loadSession, saveSession, type Session } from "./auth";
+import "./App.css";
 
-// Temporary: step 8.4d replaces the logged-in screen with the full app
 export default function App() {
   const [session, setSession] = useState<Session | null>(() => loadSession());
 
@@ -26,10 +21,8 @@ export default function App() {
     return <LoginPage onLoggedIn={handleLoggedIn} />;
   }
 
+  // key: a new login gets a fresh workspace, so nothing leaks between users
   return (
-    <main style={{ padding: 40 }}>
-      <p>Logged in as {displayName(session.email)}</p>
-      <button onClick={handleLogout}>Log out</button>
-    </main>
+    <Workspace key={session.token} session={session} onLogout={handleLogout} />
   );
 }

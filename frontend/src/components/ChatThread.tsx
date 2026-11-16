@@ -3,63 +3,112 @@ import type { Message } from "../types";
 import MessageBubble from "./MessageBubble";
 
 const SUGGESTIONS = [
-  "How much notice do I need to give after three years?",
-  "If I resign on 2 March 2027 after three years, what is my last day?",
-  "I started on 1 July 2026. How much annual leave do I get this year?",
+  "How much notice do I give after three years?",
+  "How much annual leave do I get?",
   "Can I work from home?",
+  "If I resign today, what is my last working day?",
 ];
 
-type Props = {
+type ChatThreadProps = {
   messages: Message[];
   hasDocuments: boolean;
-  onSuggestion: (question: string) => void;
+  loadingDocs: boolean;
+  addingSample: boolean;
+  onAddSample: () => void;
+  onAsk: (question: string) => void;
 };
 
 export default function ChatThread({
   messages,
   hasDocuments,
-  onSuggestion,
-}: Props) {
+  loadingDocs,
+  addingSample,
+  onAddSample,
+  onAsk,
+}: ChatThreadProps) {
   const endRef = useRef<HTMLDivElement>(null);
 
-  // Keep the newest message in view as text streams in
+  // Keep the newest text in view while an answer streams in
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages]);
 
   if (messages.length === 0) {
-    return (
-      <section className="thread thread-empty">
-        <div className="empty">
-          <h2>What do you want to know?</h2>
-          <p>
-            {hasDocuments
-              ? "Ask anything about your uploaded documents."
-              : "Upload a PDF on the left, then ask a question. Or try one of these on the sample handbook."}
-          </p>
-          <div className="suggestions">
-            {SUGGESTIONS.map((s) => (
+    if (loadingDocs) return <div className="thread" />;
+
+    if (!hasDocuments) {
+      return (
+        <div className="thread">
+          <div className="empty">
+            <div>
+              <h2>Upload a document to get started</h2>
+              <p className="empty-sub">
+                Drop a PDF in the sidebar, or try PolicyPal with our sample
+                handbook.
+              </p>
+            </div>
+            <div className="sample-card">
+              <span className="sample-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 3v5h5" />
+                  <path d="M9 13h6" />
+                  <path d="M9 17h4" />
+                </svg>
+              </span>
+              <div className="sample-text">
+                <p className="sample-title">Northbridge HR handbook</p>
+                <p className="sample-meta">
+                  Sample · 6 pages · notice, leave, sickness, hybrid working
+                </p>
+              </div>
               <button
-                key={s}
                 type="button"
-                className="chip"
-                onClick={() => onSuggestion(s)}
+                className="btn"
+                onClick={onAddSample}
+                disabled={addingSample}
               >
-                {s}
+                {addingSample ? "Adding…" : "Use sample"}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="thread">
+        <div className="empty">
+          <div>
+            <h2>What would you like to know?</h2>
+            <p className="empty-sub">
+              Ask in plain English. Every answer shows the page it came from.
+            </p>
+          </div>
+          <p className="suggestions-label">TRY ASKING</p>
+          <div className="suggestions">
+            {SUGGESTIONS.map((question) => (
+              <button
+                key={question}
+                type="button"
+                className="suggestion"
+                onClick={() => onAsk(question)}
+              >
+                {question}
               </button>
             ))}
           </div>
         </div>
-      </section>
+      </div>
     );
   }
 
   return (
-    <section className="thread" aria-live="polite">
-      {messages.map((m, i) => (
-        <MessageBubble key={i} message={m} />
+    <div className="thread">
+      {messages.map((message) => (
+        <MessageBubble key={message.id} message={message} />
       ))}
       <div ref={endRef} />
-    </section>
+    </div>
   );
 }
