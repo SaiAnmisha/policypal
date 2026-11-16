@@ -19,23 +19,25 @@ public class DocumentRepository {
         this.jdbc = jdbc;
     }
 
-    public Optional<DocumentRecord> findByContentHash(String contentHash) {
+    public Optional<DocumentRecord> findByOwnerAndContentHash(UUID ownerId, String contentHash) {
         return jdbc.sql("""
                 SELECT id, file_name, pages, chunks, uploaded_at
                 FROM documents
-                WHERE content_hash = :contentHash
+                WHERE owner_id = :ownerId AND content_hash = :contentHash
                 """)
+                .param("ownerId", ownerId)
                 .param("contentHash", contentHash)
                 .query(this::toRecord)
                 .optional();
     }
 
-    public void save(UUID id, String fileName, String contentHash, int pages, int chunks) {
+    public void save(UUID id, UUID ownerId, String fileName, String contentHash, int pages, int chunks) {
         jdbc.sql("""
-                INSERT INTO documents (id, file_name, content_hash, pages, chunks)
-                VALUES (:id, :fileName, :contentHash, :pages, :chunks)
+                INSERT INTO documents (id, owner_id, file_name, content_hash, pages, chunks)
+                VALUES (:id, :ownerId, :fileName, :contentHash, :pages, :chunks)
                 """)
                 .param("id", id)
+                .param("ownerId", ownerId)
                 .param("fileName", fileName)
                 .param("contentHash", contentHash)
                 .param("pages", pages)
@@ -43,19 +45,22 @@ public class DocumentRepository {
                 .update();
     }
 
-    public List<DocumentRecord> findAll() {
+    public List<DocumentRecord> findAllByOwner(UUID ownerId) {
         return jdbc.sql("""
                 SELECT id, file_name, pages, chunks, uploaded_at
                 FROM documents
+                WHERE owner_id = :ownerId
                 ORDER BY uploaded_at DESC
                 """)
+                .param("ownerId", ownerId)
                 .query(this::toRecord)
                 .list();
     }
 
-    public boolean deleteById(UUID id) {
-        return jdbc.sql("DELETE FROM documents WHERE id = :id")
+    public boolean deleteByIdAndOwner(UUID id, UUID ownerId) {
+        return jdbc.sql("DELETE FROM documents WHERE id = :id AND owner_id = :ownerId")
                 .param("id", id)
+                .param("ownerId", ownerId)
                 .update() > 0;
     }
 

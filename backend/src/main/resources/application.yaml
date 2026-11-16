@@ -37,3 +37,8 @@ management:
   endpoint:
     health:
       show-details: always
+
+policypal:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiry: 8h
