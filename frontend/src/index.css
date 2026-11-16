@@ -1,21 +1,33 @@
 :root {
-  --bg: #f7f8fa;
+  /* Brand */
+  --navy: #0f1b33;
+  --navy-2: #16233f;
+  --navy-3: #1e2e4f;
+  --navy-line: #23355a;
+  --navy-border: #33456b;
+  --navy-text: #cbd5e1;
+  --navy-muted: #8a9bb8;
+  --teal: #0d9488;
+  --teal-dark: #0f766e;
+  --teal-soft: #e6f6f4;
+  --teal-line: #b7e4de;
+  --teal-bright: #5eead4;
+
+  /* Surfaces and text */
+  --bg: #f6f8fa;
   --panel: #ffffff;
-  --border: #e4e7ec;
+  --border: #e3e8ef;
   --border-strong: #d0d5dd;
-  --text: #101828;
+  --text: #0f172a;
   --text-2: #475467;
   --text-3: #98a2b3;
-  --accent: #4338ca;
-  --accent-hover: #3730a3;
-  --accent-soft: #eef2ff;
-  --accent-text: #3730a3;
-  --success: #067647;
-  --success-soft: #ecfdf3;
   --danger: #b42318;
   --danger-soft: #fef3f2;
-  --radius: 10px;
+  --danger-line: #fecdca;
+
+  --radius: 12px;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-lg: 0 12px 32px rgba(15, 27, 51, 0.25);
 
   font-family:
     Inter,
@@ -35,6 +47,29 @@ body {
   margin: 0;
 }
 button,
+input,
 textarea {
   font: inherit;
+}
+
+/* Logo and name */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+.brand-accent {
+  color: var(--teal);
+}
+.brand-on-dark .brand-name {
+  color: #ffffff;
+}
+.brand-on-dark .brand-accent {
+  color: var(--teal-bright);
 }

@@ -1,11 +1,18 @@
 package com.policypal.ask;
 
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
@@ -14,20 +21,16 @@ import org.springframework.web.server.ResponseStatusException;
 import com.policypal.tools.DateTools;
 
 import reactor.core.publisher.Flux;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Service
 public class AskService {
+
     private static final Logger log = LoggerFactory.getLogger(AskService.class);
     private static final double SOURCE_SCORE_MARGIN = 0.05;
+
     private static final String NO_ANSWER = "I don't know based on the uploaded documents.";
 
-        private static final String SYSTEM_PROMPT = """
+    private static final String SYSTEM_PROMPT = """
             You answer questions about the user's documents.
             Use ONLY the information in the CONTEXT for facts about the documents.
 
@@ -56,8 +59,8 @@ public class AskService {
     }
 
     // Normal version: waits for the full answer
-    public AskResponse ask(String question) {
-        List<Document> matches = findMatches(question);
+    public AskResponse ask(String question, UUID ownerId) {
+        List<Document> matches = findMatches(question, ownerId);
         if (matches.isEmpty()) {
             return new AskResponse(NO_ANSWER, List.of());
         }
@@ -76,8 +79,8 @@ public class AskService {
     }
 
     // Streaming version: sends the answer piece by piece
-    public Flux<ServerSentEvent<Object>> askStream(String question) {
-        List<Document> matches = findMatches(question);
+    public Flux<ServerSentEvent<Object>> askStream(String question, UUID ownerId) {
+        List<Document> matches = findMatches(question, ownerId);
         if (matches.isEmpty()) {
             return Flux.just(
                     event("token", new Token(NO_ANSWER)),
@@ -105,15 +108,19 @@ public class AskService {
         return tokens.concatWith(ending);
     }
 
-    private List<Document> findMatches(String question) {
+    private List<Document> findMatches(String question, UUID ownerId) {
         if (question == null || question.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Please type a question");
         }
+        // Only search chunks that belong to this user
         return vectorStore.similaritySearch(
                 SearchRequest.builder()
                         .query(question)
                         .topK(4)
                         .similarityThreshold(0.5)
+                        .filterExpression(new FilterExpressionBuilder()
+                                .eq("owner_id", ownerId.toString())
+                                .build())
                         .build());
     }
 
@@ -154,6 +161,7 @@ public class AskService {
         Double score = doc.getScore();
         return score != null ? score : 0;
     }
+
     private ServerSentEvent<Object> event(String name, Object data) {
         return ServerSentEvent.<Object>builder(data).event(name).build();
     }
